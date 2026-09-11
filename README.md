@@ -1,4 +1,8 @@
 # Newsletter
+![](https://img.shields.io/badge/versione-2.8.1-0066a2)
+![](https://img.shields.io/badge/phpBB-3.3.17-2e7d32)
+![](https://img.shields.io/badge/PHP-8.2.30-2e7d32)
+![](https://img.shields.io/badge/licenza-GPL--2.0-6c757d)
 
 A phpBB 3.3 extension for sending newsletters to forum members. Features opt-in subscriptions via the User Control Panel, throttled batch delivery, and comprehensive delivery logging.
 
