@@ -1616,6 +1616,7 @@ class newsletter_module
 			$this->template->assign_block_vars('notiziari', array(
 				'LIST_ID'		=> $id,
 				'NAME'			=> (string) $lista['list_name'],
+				'ICON'			=> isset($lista['list_icon']) ? $this->manager->clean_icon($lista['list_icon']) : '',
 				'DESCRIPTION'	=> (string) $lista['list_desc'],
 				'SUBSCRIBERS'	=> isset($conteggi[$id]) ? $conteggi[$id] : 0,
 				'S_ENABLED'		=> !empty($lista['list_enabled']),
@@ -1650,6 +1651,8 @@ class newsletter_module
 			'NL_LIST_ID'	=> $modifica ? (int) $modifica['list_id'] : 0,
 			'NL_LIST_NAME'	=> $modifica ? htmlspecialchars((string) $modifica['list_name'], ENT_COMPAT, 'UTF-8') : '',
 			'NL_LIST_DESC'	=> $modifica ? htmlspecialchars((string) $modifica['list_desc'], ENT_COMPAT, 'UTF-8') : '',
+			'NL_LIST_ICON'	=> ($modifica && isset($modifica['list_icon'])) ? $this->manager->clean_icon($modifica['list_icon']) : '',
+			'S_ICONS_ON'	=> $this->manager->icons_available(),
 			'S_LIST_ENABLED'=> $modifica ? !empty($modifica['list_enabled']) : true,
 			'S_LIST_PUBLIC'	=> $modifica ? !empty($modifica['list_public']) : true,
 			'S_LIST_DEFAULT'=> $modifica ? !empty($modifica['list_default']) : false,
@@ -1680,6 +1683,11 @@ class newsletter_module
 			'list_public'	=> $this->request->variable('nl_list_public', 0) ? 1 : 0,
 			'list_groups'	=> implode(',', array_filter(array_map('intval', $this->request->variable('nl_list_groups', array(0))))),
 		);
+
+		if ($this->manager->icons_available())
+		{
+			$dati['list_icon'] = $this->manager->clean_icon($this->request->variable('nl_list_icon', ''));
+		}
 
 		$esistente = $list_id ? $this->manager->get_list($list_id) : false;
 
@@ -2047,6 +2055,7 @@ class newsletter_module
 			$this->save_number('newsletter_fail_streak', 0, 200, 10);
 			$this->save_number('newsletter_stall_grace', 300, 86400, 3600);
 			$this->save_flag('newsletter_report_email');
+			$this->save_flag('newsletter_notify_subs');
 
 			if ($this->request->is_set_post('newsletter_send_groups_present'))
 			{
@@ -2203,6 +2212,8 @@ class newsletter_module
 			'NEWSLETTER_FAIL_STREAK'	=> $this->manager->failsafe_available() ? (int) $this->config['newsletter_fail_streak'] : 10,
 			'NEWSLETTER_STALL_GRACE'	=> $this->manager->failsafe_available() ? (int) round($this->config['newsletter_stall_grace'] / 60) : 60,
 			'NEWSLETTER_REPORT_EMAIL'	=> $this->manager->failsafe_available() ? !empty($this->config['newsletter_report_email']) : true,
+			'NEWSLETTER_NOTIFY_SUBS'	=> !empty($this->config['newsletter_notify_subs']),
+			'S_NOTIFY_AVAILABLE'		=> isset($this->config['newsletter_notify_subs']),
 			'NEWSLETTER_SEND_COUNT'		=> $this->manager->count_pending(),
 			'NEWSLETTER_BBCODE_SMILIES'	=> !empty($this->config['newsletter_bbcode_smilies']),
 			'NEWSLETTER_BBCODE_URLS'	=> !empty($this->config['newsletter_bbcode_urls']),

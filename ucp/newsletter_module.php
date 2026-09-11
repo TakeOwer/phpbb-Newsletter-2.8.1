@@ -130,6 +130,7 @@ class newsletter_module
 			$template->assign_block_vars('notiziari', array(
 				'LIST_ID'		=> $list_id,
 				'NAME'			=> (string) $notiziario['list_name'],
+				'ICON'			=> isset($notiziario['list_icon']) ? $manager->clean_icon($notiziario['list_icon']) : '',
 				'DESCRIPTION'	=> (string) $notiziario['list_desc'],
 				'SUBSCRIBERS'	=> isset($conteggi[$list_id]) ? $conteggi[$list_id] : 0,
 				'S_CHECKED'		=> isset($iscrizioni[$list_id]),

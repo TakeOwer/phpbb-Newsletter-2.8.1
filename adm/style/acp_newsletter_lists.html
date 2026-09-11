@@ -25,7 +25,7 @@
 		{% for notiziario in notiziari %}
 			<tr>
 				<td>
-					<strong>{{ notiziario.NAME }}</strong>
+					{% if notiziario.ICON %}<i class="icon {{ notiziario.ICON }} fa-fw" aria-hidden="true"></i> {% endif %}<strong>{{ notiziario.NAME }}</strong>
 					{% if notiziario.S_DEFAULT %} <span class="nl-flag">{{ lang('NL_LIST_IS_DEFAULT') }}</span>{% endif %}
 					{% if notiziario.DESCRIPTION %}<br /><span class="small nl-hint">{{ notiziario.DESCRIPTION }}</span>{% endif %}
 				</td>
@@ -65,6 +65,23 @@
 		<dt><label for="nl_list_name">{{ lang('NL_LIST_NAME') }}{{ lang('COLON') }}</label><br /><span>{{ lang('NL_LIST_NAME_EXPLAIN') }}</span></dt>
 		<dd><input type="text" id="nl_list_name" name="nl_list_name" value="{{ NL_LIST_NAME }}" maxlength="255" class="inputbox" /></dd>
 	</dl>
+
+	{% if S_ICONS_ON %}
+		<dl>
+			<dt><label for="nl_list_icon">{{ lang('NL_LIST_ICON') }}{{ lang('COLON') }}</label><br /><span>{{ lang('NL_LIST_ICON_EXPLAIN') }}</span></dt>
+			<dd>
+				<input type="text" id="nl_list_icon" name="nl_list_icon" value="{{ NL_LIST_ICON }}" maxlength="64" size="24" class="inputbox narrow" placeholder="fa-envelope" />
+				<span id="nl_icon_preview" class="nl-icon-preview">{% if NL_LIST_ICON %}<i class="icon {{ NL_LIST_ICON }} fa-fw" aria-hidden="true"></i>{% endif %}</span>
+				<span id="nl_icon_warning" class="nl-warn" style="display: none;">{{ lang('NL_LIST_ICON_UNKNOWN') }}</span>
+
+				<div class="nl-icon-picker">
+					{% for icona in ['fa-envelope','fa-envelope-o','fa-envelope-open','fa-newspaper','fa-newspaper-o','fa-bullhorn','fa-bell','fa-bell-o','fa-star','fa-star-o','fa-shield','fa-shield-alt','fa-lock','fa-unlock','fa-key','fa-bug','fa-code','fa-laptop','fa-laptop-code','fa-terminal','fa-server','fa-sitemap','fa-network-wired','fa-database','fa-microchip','fa-desktop','fa-mobile','fa-gamepad','fa-film','fa-video-camera','fa-music','fa-headphones','fa-camera','fa-image','fa-picture-o','fa-book','fa-bookmark','fa-graduation-cap','fa-comments','fa-comment','fa-users','fa-user','fa-gift','fa-heart','fa-fire','fa-lightbulb','fa-lightbulb-o','fa-wrench','fa-cog','fa-cogs','fa-globe','fa-rss','fa-flag','fa-tag','fa-tags','fa-clock-o','fa-calendar','fa-download','fa-cloud','fa-rocket','fa-magic','fa-trophy','fa-info-circle','fa-question-circle','fa-exclamation-triangle','fa-check-circle'] %}
+						<button type="button" class="nl-icon-choice" data-nl-icon="{{ icona }}" title="{{ icona }}"><i class="icon {{ icona }} fa-fw" aria-hidden="true"></i></button>
+					{% endfor %}
+				</div>
+			</dd>
+		</dl>
+	{% endif %}
 
 	<dl>
 		<dt><label for="nl_list_desc">{{ lang('NL_LIST_DESC') }}{{ lang('COLON') }}</label><br /><span>{{ lang('NL_LIST_DESC_EXPLAIN') }}</span></dt>
@@ -113,5 +130,96 @@
 </fieldset>
 
 </form>
+
+<script>
+(function () {
+	'use strict';
+
+	var campo = document.getElementById('nl_list_icon');
+	var anteprima = document.getElementById('nl_icon_preview');
+
+	if (!campo) {
+		return;
+	}
+
+	// phpBB non include tutte le icone di Font Awesome, e quali ne includa
+	// dipende dalla versione: la 3.3.0 ne aveva una raccolta, dalla 3.3.1 in
+	// poi un'altra, e chi aggiorna il font a mano ne ha una terza. Invece di
+	// indovinare, si chiede al browser: una icona che il font non conosce non
+	// disegna nulla e occupa larghezza zero, quindi il suo pulsante viene
+	// tolto. Cosi il selettore mostra solo quello che funziona davvero qui
+	var disegnata = function (elemento) {
+		if (!elemento) {
+			return false;
+		}
+
+		var stile = window.getComputedStyle(elemento, ':before');
+		var contenuto = stile ? stile.getPropertyValue('content') : '';
+
+		// Nessuna regola per quella classe: content resta vuoto o "none"
+		if (!contenuto || contenuto === 'none' || contenuto === 'normal' || contenuto === '""' || contenuto === "''") {
+			return false;
+		}
+
+		return elemento.offsetWidth > 0;
+	};
+
+	var avviso = document.getElementById('nl_icon_warning') || document.createElement('span');
+
+	var aggiorna = function () {
+		if (!anteprima) {
+			return;
+		}
+
+		var nome = campo.value.trim().toLowerCase();
+
+		// Stessa regola del controllo lato server: se non passa, l'anteprima
+		// resta vuota invece di mostrare qualcosa che non verra salvato
+		if (!/^fa-[a-z0-9-]{1,58}$/.test(nome)) {
+			anteprima.innerHTML = '';
+			avviso.style.display = 'none';
+			return;
+		}
+
+		anteprima.innerHTML = '<i class="icon ' + nome + ' fa-fw" aria-hidden="true"></i>';
+
+		// Il nome e valido ma il font potrebbe non conoscerla: meglio dirlo
+		// subito che scoprirlo dopo aver salvato
+		avviso.style.display = disegnata(anteprima.firstChild) ? 'none' : '';
+	};
+
+	campo.addEventListener('input', aggiorna);
+	aggiorna();
+
+	var scelte = document.querySelectorAll('button[data-nl-icon]');
+	var tolte = 0;
+
+	for (var i = 0; i < scelte.length; i++) {
+		var simbolo = scelte[i].querySelector('i');
+
+		if (!disegnata(simbolo)) {
+			scelte[i].parentNode.removeChild(scelte[i]);
+			tolte++;
+			continue;
+		}
+
+		scelte[i].addEventListener('click', function (evento) {
+			campo.value = evento.currentTarget.getAttribute('data-nl-icon');
+			aggiorna();
+		});
+	}
+
+	// Se il font non e caricato affatto, sparirebbero tutte: meglio rimetterle
+	// e lasciare che sia l'amministratore a vedere cosa succede, piuttosto che
+	// mostrargli un riquadro vuoto senza spiegazione
+	if (tolte === scelte.length && scelte.length > 0) {
+		var contenitore = document.querySelector('.nl-icon-picker');
+
+		if (contenitore) {
+			contenitore.innerHTML = '';
+		}
+	}
+})();
+</script>
 
 <!-- INCLUDE overall_footer.html -->

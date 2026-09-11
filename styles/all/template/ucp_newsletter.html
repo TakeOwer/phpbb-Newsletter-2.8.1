@@ -53,7 +53,7 @@
 							<li class="nl-list-item">
 								<label>
 									<input type="checkbox" name="nl_lists[]" value="{{ notiziario.LIST_ID }}"{% if notiziario.S_CHECKED %} checked="checked"{% endif %}{% if notiziario.S_CLOSED and not notiziario.S_CHECKED %} disabled="disabled"{% endif %} class="radio" />
-									<strong>{{ notiziario.NAME }}</strong>
+									{% if notiziario.ICON %}<i class="icon {{ notiziario.ICON }} fa-fw" aria-hidden="true"></i> {% endif %}<strong>{{ notiziario.NAME }}</strong>
 									{% if notiziario.S_CLOSED %} <span class="nl-flag">{{ lang('NL_LIST_CLOSED') }}</span>{% endif %}
 								</label>
 								{% if notiziario.DESCRIPTION %}<div class="nl-list-desc">{{ notiziario.DESCRIPTION }}</div>{% endif %}

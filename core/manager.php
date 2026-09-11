@@ -54,6 +54,9 @@ class manager
 	/** @var \phpbb\log\log_interface */
 	protected $log;
 
+	/** @var \phpbb\notification\manager */
+	protected $notifications;
+
 	/** @var \salvocortesiano\newsletter\core\mailer */
 	protected $mailer;
 
@@ -93,6 +96,9 @@ class manager
 	/** @var bool Il file di lingua dell'estensione e gia stato caricato */
 	protected $lang_loaded = false;
 
+	/** @var bool|null La colonna dell'icona esiste */
+	protected $icons = null;
+
 	/**
 	 * Constructor
 	 */
@@ -102,6 +108,7 @@ class manager
 		\phpbb\language\language $language,
 		\phpbb\user $user,
 		\phpbb\log\log_interface $log,
+		\phpbb\notification\manager $notifications,
 		\salvocortesiano\newsletter\core\mailer $mailer,
 		\salvocortesiano\newsletter\core\html $html,
 		\salvocortesiano\newsletter\core\banner $banner,
@@ -120,6 +127,7 @@ class manager
 		$this->language = $language;
 		$this->user = $user;
 		$this->log = $log;
+		$this->notifications = $notifications;
 		$this->mailer = $mailer;
 		$this->html = $html;
 		$this->banner = $banner;
@@ -255,6 +263,39 @@ class manager
 		$lista = $this->get_list($list_id);
 
 		return $lista ? (string) $lista['list_name'] : '';
+	}
+
+	/**
+	 * La colonna dell'icona esiste?
+	 *
+	 * @return bool
+	 */
+	public function icons_available()
+	{
+		if ($this->icons === null)
+		{
+			$this->icons = $this->lists_available() && $this->db_tools_has_column($this->lists_table, 'list_icon');
+		}
+
+		return $this->icons;
+	}
+
+	/**
+	 * Ripulisce il nome di una icona.
+	 *
+	 * Si accetta solo la forma fa-qualcosa: il valore finisce dentro
+	 * l'attributo class di un elemento, e lasciar passare qualunque testo
+	 * significherebbe permettere di aggiungere classi arbitrarie alle pagine
+	 * del forum.
+	 *
+	 * @param string $icona
+	 * @return string
+	 */
+	public function clean_icon($icona)
+	{
+		$icona = strtolower(trim((string) $icona));
+
+		return preg_match('/^fa-[a-z0-9-]{1,58}$/', $icona) ? $icona : '';
 	}
 
 	/**
@@ -400,6 +441,46 @@ class manager
 		$this->db->sql_freeresult($result);
 
 		return !empty($riga);
+	}
+
+	/**
+	 * Avvisa chi amministra che qualcuno si e iscritto o cancellato.
+	 *
+	 * Sta dentro una rete di sicurezza per la stessa ragione dei messaggi di
+	 * conferma: la notifica e un contorno, e un contorno non deve poter far
+	 * fallire l'iscrizione, che a questo punto e gia registrata.
+	 *
+	 * @param int  $user_id
+	 * @param int  $list_id
+	 * @param bool $uscita
+	 */
+	protected function notify_subscription($user_id, $list_id, $uscita)
+	{
+		if (empty($this->config['newsletter_notify_subs']))
+		{
+			return;
+		}
+
+		$conteggi = $this->count_by_list();
+
+		$dati = array(
+			'subscriber_id'	=> (int) $user_id,
+			'list_id'		=> (int) $list_id,
+			'list_name'		=> $this->lists_available() ? $this->list_name($list_id) : (string) $this->config['sitename'],
+			'list_total'	=> isset($conteggi[(int) $list_id]) ? $conteggi[(int) $list_id] : 0,
+			'unsubscribed'	=> (bool) $uscita,
+		);
+
+		try
+		{
+			$this->notifications->add_notifications('salvocortesiano.newsletter.notification.type.subscription', $dati);
+		}
+		catch (\Exception $e)
+		{
+		}
+		catch (\Throwable $e)
+		{
+		}
 	}
 
 	/**
@@ -674,6 +755,8 @@ class manager
 			$this->send_service_email($user_row, 'NL_MAIL_WELCOME_SUBJECT', 'NL_MAIL_WELCOME_BODY', isset($riga['list_id']) ? (int) $riga['list_id'] : 0);
 		}
 
+		$this->notify_subscription($user_id, isset($riga['list_id']) ? (int) $riga['list_id'] : 0, false);
+
 		$this->log->add('user', $user_id, (string) $ip, 'LOG_NEWSLETTER_SUBSCRIBED', false, array(
 			'reportee_id' => $user_id,
 		));
@@ -700,6 +783,10 @@ class manager
 	{
 		$user_id = (int) $user_id;
 		$cambiato = false;
+
+		// Il notiziario si legge prima della cancellazione: dopo, la riga non
+		// c'e piu e non si saprebbe piu da cosa e uscito
+		$usciva_da = ((int) $list_id > 0) ? (int) $list_id : $this->default_list_id();
 
 		$this->db->sql_query('DELETE FROM ' . $this->subs_table() . '
 			WHERE user_id = ' . $user_id . $this->list_clause($list_id));
@@ -730,6 +817,11 @@ class manager
 			$this->log->add('user', ($actor_id === null) ? $user_id : (int) $actor_id, (string) $ip, 'LOG_NEWSLETTER_UNSUBSCRIBED', false, array(
 				'reportee_id' => $user_id,
 			));
+		}
+
+		if ($cambiato)
+		{
+			$this->notify_subscription($user_id, $usciva_da, true);
 		}
 
 		return $cambiato;
@@ -1429,6 +1521,30 @@ class manager
 	 * Si controlla una voce di configurazione aggiunta dalla stessa migrazione
 	 * che crea le colonne: se c'e quella ci sono anche loro, e non serve
 	 * interrogare lo schema a ogni chiamata.
+	 *
+	 * @return bool
+	 */
+	protected function db_tools_has_column($tabella, $colonna)
+	{
+		try
+		{
+			$result = $this->db->sql_query_limit('SELECT ' . $colonna . ' FROM ' . $tabella, 1);
+			$this->db->sql_freeresult($result);
+
+			return true;
+		}
+		catch (\Exception $e)
+		{
+			return false;
+		}
+		catch (\Throwable $e)
+		{
+			return false;
+		}
+	}
+
+	/**
+	 * L'archivio esiste nel database?
 	 *
 	 * @return bool
 	 */

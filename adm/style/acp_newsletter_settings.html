@@ -382,6 +382,16 @@
 		</dd>
 	</dl>
 
+	{% if S_NOTIFY_AVAILABLE %}
+		<dl>
+			<dt><label for="newsletter_notify_subs">{{ lang('NL_NOTIFY_SUBS') }}{{ lang('COLON') }}</label><br /><span>{{ lang('NL_NOTIFY_SUBS_EXPLAIN') }}</span></dt>
+			<dd>
+				<label><input type="radio" id="newsletter_notify_subs" name="newsletter_notify_subs" value="1"{% if NEWSLETTER_NOTIFY_SUBS %} checked="checked"{% endif %} class="radio" /> {{ lang('YES') }}</label>
+				<label><input type="radio" name="newsletter_notify_subs" value="0"{% if not NEWSLETTER_NOTIFY_SUBS %} checked="checked"{% endif %} class="radio" /> {{ lang('NO') }}</label>
+			</dd>
+		</dl>
+	{% endif %}
+
 	<dl>
 		<dt><label for="newsletter_welcome_email">{{ lang('NL_WELCOME_EMAIL') }}{{ lang('COLON') }}</label><br /><span>{{ lang('NL_WELCOME_EMAIL_EXPLAIN') }}</span></dt>
 		<dd>

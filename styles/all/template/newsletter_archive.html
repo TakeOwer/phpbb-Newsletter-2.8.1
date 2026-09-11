@@ -11,7 +11,7 @@
 			<p class="nl-archive-filter">
 				{% for notiziario in notiziari %}
 					{% if not loop.first %} &middot; {% endif %}
-					{% if notiziario.S_SELECTED %}<strong>{{ notiziario.NAME }} ({{ notiziario.COUNT }})</strong>{% else %}<a href="{{ notiziario.U_LIST }}">{{ notiziario.NAME }} ({{ notiziario.COUNT }})</a>{% endif %}
+					{% if notiziario.S_SELECTED %}<strong>{% if notiziario.ICON %}<i class="icon {{ notiziario.ICON }} fa-fw" aria-hidden="true"></i> {% endif %}{{ notiziario.NAME }} ({{ notiziario.COUNT }})</strong>{% else %}<a href="{{ notiziario.U_LIST }}">{% if notiziario.ICON %}<i class="icon {{ notiziario.ICON }} fa-fw" aria-hidden="true"></i> {% endif %}{{ notiziario.NAME }} ({{ notiziario.COUNT }})</a>{% endif %}
 				{% endfor %}
 			</p>
 		{% endif %}

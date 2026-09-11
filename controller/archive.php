@@ -165,6 +165,7 @@ class archive
 
 				$this->template->assign_block_vars('notiziari', array(
 					'NAME'			=> (string) $notiziario['list_name'],
+					'ICON'			=> isset($notiziario['list_icon']) ? $this->manager->clean_icon($notiziario['list_icon']) : '',
 					'DESCRIPTION'	=> (string) $notiziario['list_desc'],
 					'COUNT'			=> (int) $notiziario['numeri'],
 					'S_SELECTED'	=> ($list_id === $id),

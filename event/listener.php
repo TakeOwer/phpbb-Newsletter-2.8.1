@@ -87,6 +87,14 @@ class listener implements EventSubscriberInterface
 			'lang_set'	=> 'logs_newsletter',
 		);
 
+		// Il testo delle notifiche viene composto ovunque compaia la
+		// campanella, cioe su ogni pagina: senza questo, nel pannello a
+		// comparsa si leggerebbe NOTIFICATION_NEWSLETTER_JOINED
+		$lang_set_ext[] = array(
+			'ext_name'	=> 'salvocortesiano/newsletter',
+			'lang_set'	=> 'notifications_newsletter',
+		);
+
 		$event['lang_set_ext'] = $lang_set_ext;
 	}
 

@@ -47,6 +47,7 @@ services:
             - '@language'
             - '@user'
             - '@log'
+            - '@notification_manager'
             - '@salvocortesiano.newsletter.mailer'
             - '@salvocortesiano.newsletter.html'
             - '@salvocortesiano.newsletter.banner'
@@ -108,6 +109,16 @@ services:
             - '@user'
             - '@controller.helper'
             - '@salvocortesiano.newsletter.manager'
+
+    salvocortesiano.newsletter.notification.type.subscription:
+        class: salvocortesiano\newsletter\notification\type\subscription
+        shared: false
+        parent: notification.type.base
+        calls:
+            - [set_user_loader, ['@user_loader']]
+            - [set_helper, ['@controller.helper']]
+        tags:
+            - { name: notification.type }
 
     salvocortesiano.newsletter.listener:
         class: salvocortesiano\newsletter\event\listener
