@@ -1,5 +1,124 @@
 # Newsletter
 
+A phpBB 3.3 extension for sending newsletters to forum members. Features opt-in subscriptions via the User Control Panel, throttled batch delivery, and comprehensive delivery logging.
+
+- **Version:** 2.8.1
+- **phpBB:** 3.3.17 (3.3.0 or later, not compatible with 4.x)
+- **PHP:** 8.2.30 (7.1 or later)
+- **License:** GPL-2.0-only
+- **Languages:** Italian, English
+
+---
+
+## 🌟 Key Features
+
+### 👤 For Users
+* **UCP Subscription Management:** Adds a **Newsletter** tab in the User Control Panel where users can manage their subscription preferences.
+* **Instant Confirmation:** Upon subscribing, users receive an immediate confirmation email detailing their subscription status with a one-click unsubscribe link.
+* **One-Click Unsubscribe (No Login Required):** Unsubscribe links work seamlessly without requiring users to log in, reducing spam reports.
+* **HMAC Security:** Unsubscribe links are secured with HMAC tokens to prevent unauthorized subscription alterations.
+* **Global Sync:** Unsubscribing automatically turns off the "Receive emails from administrator" profile option to ensure user preferences are strictly respected across group emails.
+
+### 🛠️ For Administrators
+
+* **✍️ Newsletter Composer:** Write plain text or HTML newsletters with support for optional CSS stylesheets, highlighted forum topics, custom placeholders, live preview, and single-recipient test emails.
+* **🎯 Flexible Targeting:** Select target groups with optional inclusion of UCP subscribers. Groups and opt-in subscribers are merged without duplicates, with built-in language filtering.
+* **📧 Custom Headers:** Configure priority levels (1 to 5), importance, sensitivity/privacy settings, sender name/email, and custom Reply-To addresses.
+* **⏱️ Throttled Delivery:** Customize batch sizes (10–100 emails) and interval delays (`hh:mm:ss`), with support for scheduled future dispatch. Includes pre-send confirmations with precise target counts, total batches, estimated runtime, and host limit warnings.
+* **📝 Multiple Formats (Text, BBCode, HTML):** Support for plain text, full phpBB BBCode (processed via phpBB's native `text_formatter` supporting smilies, nested quotes, and custom tags at dispatch time), or full HTML layout with automatic relative-path to absolute-path conversion for embedded images.
+* **🖼️ Header Image Support:** Upload custom HTML header banners (JPG, PNG, GIF) up to a defined height constraint (200–260px). Banners are centered, linked to the board home, and safely managed inside `images/newsletter/`. Option to bypass headers on individual sends while preserving stored banners.
+* **📋 Subscriber Management:** View and search opt-in subscribers (by username or email), sort by sign-up timestamp or IP address, and manually remove individual subscribers. Users who opted out of admin emails are flagged.
+* **🔔 Tailored Unsubscribe Notices:** When manually removing a user, administrators can opt to send a dedicated notice explaining the administrative action rather than sending standard self-unsubscribe copy.
+* **🔍 Diagnostic SMTP Test Tool:** Built-in connection tester in ACP settings to test SMTP handshakes step-by-step (DNS resolution, socket connection, EHLO, auth mechanisms, and message delivery) with full raw server responses. Suggests optimal SSL/TLS prefixes when needed.
+* **🏛️ Public Forum Archive:** Option to publish completed newsletter campaigns to a dedicated, paginated public forum archive accessible via navigation menu. Features a "View in browser" escape link and renders HTML campaigns safely inside sandboxed `iframe` containers to prevent style leaks. Campaigns can be published or withdrawn at any time.
+* **📊 Comprehensive Delivery Logs:** Detailed real-time activity logs displaying sent, queued, and failed email metrics per campaign. Drill down to inspect individual recipients, retry counts, error messages, pause/resume/cancel workflows, failed queue retries, and manual batch execution.
+
+---
+
+## 🚀 Installation
+
+1. Upload/copy the extension directory to `ext/salvo/newsletter/` (or your configured vendor namespace).
+2. Go to **ACP → Customize → Manage extensions**.
+3. Locate **Newsletter** and click **Enable**.
+4. Navigate to **ACP → Newsletter → Settings** to configure sender settings, default footers, and batch parameters.
+
+> **Note:** The administrative permission `a_newsletter` is automatically granted to the Administrators group upon installation. To assign permissions to other groups, visit **Permissions → Group Permissions → Miscellaneous**.
+
+### 🗑️ Uninstallation
+
+From **Manage extensions**:
+* **Disable:** Disables the extension while keeping all settings and logs intact in the database.
+* **Delete data:** Completely removes all tables, configurations, permissions, and ACP menu entries.
+
+---
+
+## ⚙️ Delivery Engine Mechanics
+
+No messages bypass the queue system. Upon campaign confirmation, the delivery queue populates with individual recipient records. Each batch execution processes a chunk of records, updating statuses in real-time. If interrupted by a timeout or server reboot, dispatch resumes seamlessly from the exact point of interruption without duplicate sends.
+
+Subsequent batches are triggered via **phpBB's scheduled task system (cron)**. For low-traffic forums, configuring a system-level cron job is strongly recommended:
+
+```bash
+*/5 * * * * php /path/to/your/forum/bin/phpbbcli.php cron:run
+```
+
+Without a system cron, batch execution relies on board visits, which may delay scheduled intervals.
+
+### 💡 Why Throttled Delivery?
+
+Most shared hosting providers enforce strict hourly email limits (e.g., 40–50 emails/hour). Exceeding these limits can cause server-side blocks affecting all board emails, including registration and password reset notifications. Small batch sizes with conservative intervals ensure smooth and compliant delivery.
+
+### 🏷️ Template Placeholders
+
+| Placeholder | Description |
+|---|---|
+| `{USERNAME}` | Recipient's board username |
+| `{EMAIL}` | Recipient's email address |
+| `{USER_ID}` | Recipient's user ID |
+| `{BOARD_NAME}` | Forum name |
+| `{BOARD_URL}` | Forum URL |
+| `{DATE}` | Dispatch date |
+| `{UNSUBSCRIBE_URL}` | Unique recipient unsubscribe link |
+| `{UNSUBSCRIBE_LINK}` | Pre-formatted HTML unsubscribe link (HTML format only) |
+
+---
+
+## 🛠️ Technical Specifications
+
+* **Single Body Architecture:** The campaign record stores message content once; individual queue records track recipient metrics only, optimizing database storage efficiency.
+* **Inline CSS Conversion:** HTML emails pass through DOMDocument and XPath transformations to inline CSS rules directly into style attributes, guaranteeing consistent rendering across restrictive email clients like Gmail.
+* **Custom MIME Construction:** Bypasses native phpBB MIME limits to support multipart/alternative HTML without conflicting `Content-Type` headers, while fully leveraging native `phpbb_mail` and `smtpmail` transport mechanisms.
+* **Base64 Encoding:** Message bodies are base64 encoded prior to delivery, preserving HTML structure and prevents line-wrapping breaks caused by wordwrap functions.
+* **Concurrency Locking:** Employs atomic `campaign_last_run` timestamp locking to prevent concurrent cron execution from generating duplicate batch dispatches.
+* **HTML Sanitization:** Input HTML is cleaned prior to preview and dispatch, removing malicious scripts, iframes, event handlers, and `javascript:` URIs.
+
+### 🗄️ Database Schema
+
+| Table | Description |
+|---|---|
+| `phpbb_newsletter_campaigns` | Stores campaign data: body content, target settings, dispatch state, and counters. |
+| `phpbb_newsletter_queue` | Stores queued messages per recipient: status, attempt counts, and error details. |
+| `phpbb_newsletter_subs` | Stores voluntary UCP subscriptions: user ID, email, registration date, and IP. |
+
+*Orphaned subscriber entries from deleted board accounts are cleaned up automatically during routine maintenance tasks.*
+
+---
+
+## ❓ Troubleshooting
+
+* **Messages not sending:** Verify that board email functionality is enabled in **ACP → General → Email Settings**, ensure the extension is active, and confirm that phpBB cron tasks are executing. Check campaign status in the **Logs** tab.
+* **All recipients fail:** Run the **SMTP Connection Test** in extension settings to inspect raw handshake responses. Common causes include misconfigured SMTP credentials or domain sender mismatch.
+* **Emails landing in Spam:** Ensure the sender email matches your forum domain and verify that SPF and DKIM DNS records are properly configured.
+* **Slow delivery rate:** Throttling is intentional to comply with server thresholds. Adjust batch size or interval frequency in settings if your host allows higher limits.
+* **Campaign stuck in "In Progress":** Next batch is waiting for the next cron execution. Use **"Send next batch now"** in the detailed campaign logs to force immediate processing.
+
+---
+
+## 📄 License
+Distributed under the **GNU General Public License v2.0 only**. See `license.txt` for details.
+
+# Newsletter
+
 Estensione per phpBB 3.3 che invia newsletter agli iscritti del forum, con iscrizione volontaria dal pannello utente, invio a lotti temporizzato e registro dettagliato dei recapiti.
 
 - **Versione:** 2.8.1
