@@ -2,7 +2,7 @@
 
 Estensione per phpBB 3.3 che invia newsletter agli iscritti del forum, con iscrizione volontaria dal pannello utente, invio a lotti temporizzato e registro dettagliato dei recapiti.
 
-- **Versione:** 2.6.3
+- **Versione:** 2.8.1
 - **phpBB:** 3.3.0 o successivo (non compatibile con la 4.x)
 - **PHP:** 7.1 o successivo
 - **Licenza:** GPL-2.0-only
